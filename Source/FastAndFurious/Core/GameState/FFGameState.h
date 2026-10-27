@@ -8,6 +8,7 @@
 class AFFPlayerState;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNotificationChanged, const FText&, NewText);
+DECLARE_MULTICAST_DELEGATE(FOnGameStateChanged);
 
 UENUM(BlueprintType)
 enum class EGameState : uint8
@@ -35,16 +36,21 @@ public:
 
 	int32 GetRemainingTime() const { return RemainingTime; }
 	const FText& GetNotificationText() const { return NotificationText; }
+	EGameState GetCurrentGameState() const { return CurrentGameState; }
 
 protected:
 	UFUNCTION()
 	void OnRep_NotificationText();
 
+	UFUNCTION()
+	void OnRep_CurrentGameState();
+
 public:
 	FOnNotificationChanged OnNotificationChanged;
+	FOnGameStateChanged OnGameStateChanged;
 
 protected:
-	UPROPERTY(Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentGameState)
 	EGameState CurrentGameState = EGameState::Waiting;
 
 	UPROPERTY(Replicated)

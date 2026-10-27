@@ -69,6 +69,28 @@ void AFFPlayerState::SetPlayerNameString(FString& NewPlayerNameString)
 	PlayerNameString = NewPlayerNameString;
 }
 
+void AFFPlayerState::AddMaxSpeedPenalty(float Amount)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	MaxSpeedPenalty += Amount;
+}
+
+void AFFPlayerState::RemoveMaxSpeedPenalty(float Amount)
+{
+	if (!HasAuthority() || Amount <= 0.0f || MaxSpeedPenalty <= 0.0f)
+	{
+		return;
+	}
+
+	MaxSpeedPenalty = FMath::Max(0.0f, MaxSpeedPenalty - Amount);
+
+	OnMaxSpeedPenaltyChanged.Broadcast();
+}
+
 FString AFFPlayerState::GetPlayerStateInfo() const
 {
 	return FString::Printf(TEXT("Coins: %d, BonusMaxSpeed: %.2f"), Coins, BonusMaxSpeed);
@@ -82,7 +104,12 @@ FString AFFPlayerState::GetCoinsInfo() const
 
 FString AFFPlayerState::GetBonusMaxSpeedInfo() const
 {
-	return FString::Printf(TEXT("BonusMaxSpeed: % .2f"), BonusMaxSpeed);
+	return FString::Printf(TEXT("BonusMaxSpeed: %.2f"), BonusMaxSpeed);
+}
+
+FString AFFPlayerState::GetMaxSpeedPenaltyInfo() const
+{
+	return FString::Printf(TEXT("MaxSpeedPenalty: %.2f"), MaxSpeedPenalty * (-1));
 }
 
 void AFFPlayerState::OnRep_Coins()
@@ -93,5 +120,10 @@ void AFFPlayerState::OnRep_Coins()
 void AFFPlayerState::OnRep_BonusMaxSpeed()
 {
 	OnBonusMaxSpeedChanged.Broadcast();
+}
+
+void AFFPlayerState::OnRep_MaxSpeedPenalty()
+{
+	OnMaxSpeedPenaltyChanged.Broadcast();
 }
 

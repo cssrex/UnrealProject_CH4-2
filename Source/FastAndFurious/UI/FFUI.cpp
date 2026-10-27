@@ -59,9 +59,11 @@ void UFFUI::InitializePlayerState()
 	CachingPlayerState = NewPlayerState;
 	CachingPlayerState->OnCoinsChanged.AddUObject(this, &UFFUI::OnCoinsTextCommitted);
 	CachingPlayerState->OnBonusMaxSpeedChanged.AddUObject(this, &UFFUI::OnMaxBonusSpeedTextCommitted);
+	CachingPlayerState->OnMaxSpeedPenaltyChanged.AddUObject(this, &UFFUI::OnMaxSpeedPenaltyTextCommitted);
 
 	OnCoinsTextCommitted();
 	OnMaxBonusSpeedTextCommitted();
+	OnMaxSpeedPenaltyTextCommitted();
 
 	if (UWorld* World = GetWorld())
 	{
@@ -116,6 +118,15 @@ void UFFUI::OnMaxBonusSpeedTextCommitted()
 	{
 		FString Info = CachingPlayerState->GetBonusMaxSpeedInfo();
 		Text_BonusMaxSpeed->SetText(FText::FromString(Info));
+	}
+}
+
+void UFFUI::OnMaxSpeedPenaltyTextCommitted()
+{
+	if (IsValid(CachingPlayerState) && IsValid(Text_MaxSpeedPenalty))
+	{
+		FString Info = CachingPlayerState->GetMaxSpeedPenaltyInfo();
+		Text_MaxSpeedPenalty->SetText(FText::FromString(Info));
 	}
 }
 

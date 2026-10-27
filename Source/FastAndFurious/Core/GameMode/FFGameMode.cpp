@@ -7,10 +7,35 @@
 #include "Core/Subsystem/FFChatSubsystem.h"
 #include "Player/PlayerState/FFPlayerState.h"
 #include "Core/GameState/FFGameState.h"
+#include "GameFramework/GameSession.h"
+#include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 
 AFFGameMode::AFFGameMode()
 {
 	PlayerControllerClass = AFFPlayerController::StaticClass();
+}
+
+void AFFGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
+{
+	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
+
+	if (!ErrorMessage.IsEmpty())
+	{
+		return;
+	}
+
+	const AFFGameState* FFGameState = GetGameState<AFFGameState>();
+	if (!IsValid(FFGameState))
+	{
+		ErrorMessage = TEXT("Game state is not ready.");
+		return;
+	}
+
+	if (FFGameState->GetCurrentGameState() != EGameState::Waiting)
+	{
+		ErrorMessage = TEXT("The match is already in progress.");
+	}
 }
 
 void AFFGameMode::PostLogin(APlayerController* NewPlayer)
@@ -23,32 +48,47 @@ void AFFGameMode::PostLogin(APlayerController* NewPlayer)
 	}
 
 	AFFPlayerController* FFPlayerController = Cast<AFFPlayerController>(NewPlayer);
-	if (IsValid(FFPlayerController))
+	if (!IsValid(FFPlayerController))
 	{
-		AlivePlayerControllers.Add(FFPlayerController);
+		return;
+	}
 
-		AFFPlayerState* FFPlayerState = FFPlayerController->GetPlayerState<AFFPlayerState>();
-		if (IsValid(FFPlayerState))
+	AFFGameState* FFGameState = GetGameState<AFFGameState>();
+	if (!IsValid(FFGameState) || FFGameState->GetCurrentGameState() != EGameState::Waiting)
+	{
+		if (IsValid(GameSession))
 		{
-			FString PlayerName = FString::Printf(TEXT("Player%d"), AlivePlayerControllers.Num() + DeadPlayerControllers.Num());
-			FFPlayerState->SetPlayerNameString(PlayerName);
+			GameSession->KickPlayer(FFPlayerController, FText::FromString(TEXT("게임이 이미 시작되었습니다.")));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("Cannot reject late player: GameSession is invalid"));
 		}
 
-		if (!bWaitingCountdownStarted && AlivePlayerControllers.Num() >= 2)
-		{
-			StartWaitingCountdown();
-		}
+		return;
+	}
 
-		if (UFFChatSubsystem* ChatSubsystem = GetWorld()->GetSubsystem<UFFChatSubsystem>())
-		{
-			const TArray<FChatData> ChatLog = ChatSubsystem->GetChatLog();
+	AlivePlayerControllers.AddUnique(FFPlayerController);
 
-			if (!ChatLog.IsEmpty())
-			{
-				FFPlayerController->ClientRPCChatLog(ChatLog);
-			}
+	AFFPlayerState* FFPlayerState = FFPlayerController->GetPlayerState<AFFPlayerState>();
+	if (IsValid(FFPlayerState))
+	{
+		FString PlayerName = FString::Printf(TEXT("Player%d"), AlivePlayerControllers.Num() + DeadPlayerControllers.Num());
+		FFPlayerState->SetPlayerNameString(PlayerName);
+	}
+
+	UpdateWaitingState();
+
+	if (UFFChatSubsystem* ChatSubsystem = GetWorld()->GetSubsystem<UFFChatSubsystem>())
+	{
+		const TArray<FChatData> ChatLog = ChatSubsystem->GetChatLog();
+
+		if (!ChatLog.IsEmpty())
+		{
+			FFPlayerController->ClientRPCChatLog(ChatLog);
 		}
 	}
+
 }
 
 void AFFGameMode::Logout(AController* Exiting)
@@ -59,6 +99,10 @@ void AFFGameMode::Logout(AController* Exiting)
 		AlivePlayerControllers.Remove(ExitingPlayerController);
 		DeadPlayerControllers.Add(ExitingPlayerController);
 	}
+
+	Super::Logout(Exiting);
+
+	UpdateWaitingState();
 }
 
 void AFFGameMode::BeginPlay()
@@ -70,6 +114,8 @@ void AFFGameMode::BeginPlay()
 	{
 		FFGameState->SetGameState(EGameState::Waiting);
 	}
+
+	UpdateWaitingState();
 }
 
 AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -103,7 +149,7 @@ void AFFGameMode::StartWaitingCountdown()
 	bWaitingCountdownStarted = true;
 
 	FFGameState->SetGameState(EGameState::Waiting);
-	FFGameState->SetRemainingTime(5);
+	FFGameState->SetRemainingTime(WaitingDuration);
 
 	FString Message = FString::Printf(TEXT("게임 대기 중\n(남은 시간 : %02d초)"), FFGameState->GetRemainingTime());
 	FFGameState->SetNotificationText(FText::FromString(Message));
@@ -116,20 +162,31 @@ void AFFGameMode::HandleWaitingTimerTick()
 	AFFGameState* FFGameState = GetGameState<AFFGameState>();
 	if (!IsValid(FFGameState))
 	{
+		GetWorldTimerManager().ClearTimer(GameTimerHandle);
+		bWaitingCountdownStarted = false;
+		return;
+	}
+
+	if (AlivePlayerControllers.Num() < MinimumPlayerCount)
+	{
+		UpdateWaitingState();
 		return;
 	}
 
 	const int32 NewRemainingTime = FFGameState->GetRemainingTime() - 1;
 	FFGameState->SetRemainingTime(NewRemainingTime);
 
-	FString Message = FString::Printf(TEXT("게임 대기 중\n(남은 시간 : %02d초)"), FFGameState->GetRemainingTime());
-	FFGameState->SetNotificationText(FText::FromString(Message));
-
 	if (NewRemainingTime <= 0)
 	{
 		GetWorldTimerManager().ClearTimer(GameTimerHandle);
+		bWaitingCountdownStarted = false;
 		StartPlayingState();
+
+		return;
 	}
+
+	FString Message = FString::Printf(TEXT("게임 대기 중\n(남은 시간 : %02d초)"), FFGameState->GetRemainingTime());
+	FFGameState->SetNotificationText(FText::FromString(Message));
 }
 
 void AFFGameMode::StartPlayingState()
@@ -143,7 +200,7 @@ void AFFGameMode::StartPlayingState()
 	}
 
 	FFGameState->SetGameState(EGameState::Playing);
-	FFGameState->SetRemainingTime(30);
+	FFGameState->SetRemainingTime(PlayingDuration);
 
 	int32 Minutes = FFGameState->GetRemainingTime() / 60;
 	int32 Seconds = FFGameState->GetRemainingTime() % 60;
@@ -244,6 +301,106 @@ void AFFGameMode::FinishGame()
 	Message += ")";
 
 	FFGameState->SetNotificationText(FText::FromString(Message));
+
+	GetWorldTimerManager().SetTimer(GameTimerHandle, this, &AFFGameMode::ReturnPlayersToTitle, ReturnToTitleDelay, false);
+}
+
+void AFFGameMode::UpdateWaitingState()
+{
+	AFFGameState* FFGameState = GetGameState<AFFGameState>();
+
+	if (!IsValid(FFGameState))
+	{
+		return;
+	}
+
+	if (FFGameState->GetCurrentGameState() != EGameState::Waiting)
+	{
+		return;
+	}
+
+	const int32 CurrentPlayerCount = AlivePlayerControllers.Num();
+
+	if (CurrentPlayerCount < MinimumPlayerCount)
+	{
+		GetWorldTimerManager().ClearTimer(GameTimerHandle);
+
+		bWaitingCountdownStarted = false;
+
+		FFGameState->SetRemainingTime(WaitingDuration);
+
+		const FString Message = FString::Printf(TEXT("플레이어 대기 중\n(%d / %d)"), CurrentPlayerCount, MinimumPlayerCount);
+
+		FFGameState->SetNotificationText(FText::FromString(Message));
+
+		return;
+	}
+
+	if (!bWaitingCountdownStarted)
+	{
+		StartWaitingCountdown();
+	}
+}
+
+void AFFGameMode::ReturnPlayersToTitle()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (TitleMapPath.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("TitleMapPath is empty"));
+		return;
+	}
+
+	bWaitingForPlayersToLeave = true;
+
+	TArray<TObjectPtr<AFFPlayerController>> ControllersToReturn = AlivePlayerControllers;
+
+	for (AFFPlayerController* PC : DeadPlayerControllers)
+	{
+		ControllersToReturn.AddUnique(PC);
+	}
+
+	for (AFFPlayerController* PC : ControllersToReturn)
+	{
+		if (!IsValid(PC))
+		{
+			continue;
+		}
+
+		PC->ClientTravel(TitleMapPath, TRAVEL_Absolute);
+	}
+
+	GetWorldTimerManager().SetTimer(ResetTimerHandle, this, &AFFGameMode::TryResetServer, 1.0f, true);
+}
+
+void AFFGameMode::TryResetServer()
+{
+	if (!HasAuthority() || !bWaitingForPlayersToLeave)
+	{
+		return;
+	}
+
+	for (TActorIterator<APlayerController> It(GetWorld()); It; ++It)
+	{
+		APlayerController* PC = *It;
+
+		if (IsValid(PC))
+		{
+			return;
+		}
+	}
+
+	GetWorldTimerManager().ClearTimer(ResetTimerHandle);
+	bWaitingForPlayersToLeave = false;
+
+	const FString CurrentMapName = UGameplayStatics::GetCurrentLevelName(this, true);
+	UE_LOG(LogTemp, Warning, TEXT("Resetting server map: %s"), *CurrentMapName);
+
+	GetWorld()->ServerTravel(CurrentMapName, true);
 }
 
 bool AFFGameMode::IsPlayerStartAvailable(const APlayerStart* PlayerStart) const

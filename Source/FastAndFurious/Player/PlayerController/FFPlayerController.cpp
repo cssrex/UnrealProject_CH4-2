@@ -20,6 +20,11 @@ void AFFPlayerController::BeginPlay()
 		return;
 	}
 
+	FInputModeGameOnly InputMode;
+	SetInputMode(InputMode);
+
+	bShowMouseCursor = false;
+
 	VehicleUI = CreateWidget<UFFUI>(this, VehicleUIClass);
 
 	check(VehicleUI);

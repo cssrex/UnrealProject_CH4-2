@@ -52,6 +52,9 @@ protected:
 	void OnMaxBonusSpeedTextCommitted();
 
 	UFUNCTION()
+	void OnMaxSpeedPenaltyTextCommitted();
+
+	UFUNCTION()
 	void OnNotificationTextCommitted(const FText& NewNotificationText);
 
 #pragma region ChatUI
@@ -67,6 +70,9 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_BonusMaxSpeed;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_MaxSpeedPenalty;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_Notification;

@@ -21,7 +21,14 @@ void AFFGameState::SetGameState(EGameState NewGameState)
 		return;
 	}
 
+	if (CurrentGameState == NewGameState)
+	{
+		return;
+	}
+
 	CurrentGameState = NewGameState;
+
+	OnGameStateChanged.Broadcast();
 }
 
 void AFFGameState::SetRemainingTime(int32 NewRemainingTime)
@@ -57,4 +64,9 @@ void AFFGameState::SetNotificationText(const FText& NewText)
 void AFFGameState::OnRep_NotificationText()
 {
 	OnNotificationChanged.Broadcast(NotificationText);
+}
+
+void AFFGameState::OnRep_CurrentGameState()
+{
+	OnGameStateChanged.Broadcast();
 }

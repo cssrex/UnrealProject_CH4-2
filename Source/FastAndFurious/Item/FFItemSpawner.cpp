@@ -2,6 +2,7 @@
 #include "Item/FFItemSpawner.h"
 
 #include "Components/BillboardComponent.h"
+#include "Item/FFItemBase.h"
 
 AFFItemSpawner::AFFItemSpawner()
 {
@@ -25,7 +26,7 @@ void AFFItemSpawner::SpawnItem()
 {
 	UWorld* World = GetWorld();
 
-	SpawnedItem = World->SpawnActorDeferred<AActor>(ItemClass, GetActorTransform(), this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	SpawnedItem = World->SpawnActorDeferred<AFFItemBase>(ItemClass, GetActorTransform(), this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (IsValid(SpawnedItem))
 	{
 		SpawnedItem->OnDestroyed.AddDynamic(this, &AFFItemSpawner::OnItemDestroyed);

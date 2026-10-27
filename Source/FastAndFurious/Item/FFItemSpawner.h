@@ -6,6 +6,7 @@
 #include "FFItemSpawner.generated.h"
 
 class UBillboardComponent;
+class AFFItemBase;
 
 UCLASS()
 class FASTANDFURIOUS_API AFFItemSpawner : public AActor
@@ -26,14 +27,14 @@ protected:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Spawner)
-	TSubclassOf<AActor> ItemClass;
+	TSubclassOf<AFFItemBase> ItemClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Spawner)
 	float SpawnInterval = 2.f;
 
 protected:
 	UPROPERTY()
-	TObjectPtr<AActor> SpawnedItem;
+	TObjectPtr<AFFItemBase> SpawnedItem;
 
 	FTimerHandle SpawnTimerHandle;
 
