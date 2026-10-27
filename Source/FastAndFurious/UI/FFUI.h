@@ -11,6 +11,11 @@
  *  Displays the current speed and gear.
  *  Widget setup is handled in a Blueprint subclass.
  */
+
+class UFFChatUI;
+class UTextBlock;
+class AFFPlayerState;
+
 UCLASS(abstract)
 class FASTANDFURIOUS_API  UFFUI : public UUserWidget
 {
@@ -23,20 +28,35 @@ protected:
 	bool bIsMPH = false;
 
 public:
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 
-	/** Called to update the speed display */
+public:
+	void InitializePlayerState();
+
 	void UpdateSpeed(float NewSpeed);
-
-	/** Called to update the gear display */
 	void UpdateGear(int32 NewGear);
 
 protected:
-
-	/** Implemented in Blueprint to display the new speed */
 	UFUNCTION(BlueprintImplementableEvent, Category = Vehicle)
 	void OnSpeedUpdate(float NewSpeed);
-
-	/** Implemented in Blueprint to display the new gear */
 	UFUNCTION(BlueprintImplementableEvent, Category = Vehicle)
 	void OnGearUpdate(int32 NewGear);
+
+	UFUNCTION()
+	void OnStateTextCommitted();
+
+#pragma region ChatUI
+public:
+	void OnNewChatMessage(const FString& Sender, const FString& Message);
+
+protected:
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UFFChatUI> UI_Chat;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> StateText;
+
+	TObjectPtr<AFFPlayerState> CachingPlayerState;
+#pragma endregion
 };

@@ -9,6 +9,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
+#include "Player/PlayerState/FFPlayerState.h"
+#include "Kismet/GameplayStatics.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -73,6 +75,8 @@ void AFFPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputCompon
 		EnhancedInputComponent->BindAction(ToggleCameraAction, ETriggerEvent::Triggered, this, &AFFPawn::ToggleCamera);
 
 		EnhancedInputComponent->BindAction(ResetVehicleAction, ETriggerEvent::Triggered, this, &AFFPawn::ResetVehicle);
+
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AFFPawn::InputAttack);
 	}
 	else
 	{
@@ -91,6 +95,51 @@ void AFFPawn::Tick(float Delta)
 	CameraYaw = FMath::FInterpTo(CameraYaw, 0.0f, Delta, 1.0f);
 
 	BackSpringArm->SetRelativeRotation(FRotator(0.0f, CameraYaw, 0.0f));
+}
+
+float AFFPawn::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (!HasAuthority())
+	{
+		return 0.0f;
+	}
+
+	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	if (ActualDamage <= 0)
+	{
+		return ActualDamage;
+	}
+
+	if (DamageCauser == this)
+	{
+		return 0.0f;
+	}
+
+	AFFPawn* Attacker = Cast<AFFPawn>(DamageCauser);
+	if (!IsValid(Attacker))
+	{
+		return 0.0f;
+	}
+
+	// 맞은 사람
+	AFFPlayerState* VictimPlayerState = GetPlayerState<AFFPlayerState>();
+
+	// 때린 사람
+	AFFPlayerState* AttackerPlayerState = Attacker->GetPlayerState<AFFPlayerState>();
+
+	const int32 TransferCoinAmount = (int32)ActualDamage;
+	if (VictimPlayerState->TryRemoveCoins(TransferCoinAmount))
+	{
+		UE_LOG(LogTemplateVehicle, Warning, TEXT("%s Transferred %d coins to %s"), *GetNameSafe(VictimPlayerState), TransferCoinAmount, *GetNameSafe(AttackerPlayerState));
+		AttackerPlayerState->AddCoins(TransferCoinAmount);
+	}
+	else
+	{
+		UE_LOG(LogTemplateVehicle, Warning, TEXT("%s has no coin to transfer"), *GetNameSafe(VictimPlayerState), TransferCoinAmount, *GetNameSafe(AttackerPlayerState));
+	}
+
+	return ActualDamage;
 }
 
 void AFFPawn::Steering(const FInputActionValue& Value)
@@ -169,6 +218,62 @@ void AFFPawn::ResetVehicle(const FInputActionValue& Value)
 	GetMesh()->SetPhysicsLinearVelocity(FVector::ZeroVector);
 
 	UE_LOG(LogTemplateVehicle, Error, TEXT("Reset Vehicle"));
+}
+
+void AFFPawn::InputAttack(const FInputActionValue& Value)
+{
+	ServerRPCAttack();
+}
+
+void AFFPawn::ServerRPCAttack_Implementation()
+{
+	UE_LOG(LogTemplateVehicle, Warning, TEXT("Attack"));
+
+	const FVector Start = GetActorLocation();
+	const FVector End = Start + GetActorForwardVector() * 700.0f;
+
+	if (UWorld* World = GetWorld())
+	{
+		FHitResult HitResult;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+		bool bHitVehicle = false;
+		bool bHit = World->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params);
+		if (bHit)
+		{
+			AActor* HitActor = HitResult.GetActor();
+
+			if (IsValid(HitActor))
+			{
+				UE_LOG(LogTemplateVehicle, Warning, TEXT("Hit Actor: %s"), *GetNameSafe(HitResult.GetActor()));
+			}
+
+			if (AFFPawn* FFPawn = Cast<AFFPawn>(HitActor))
+			{
+				bHitVehicle = true;
+				UGameplayStatics::ApplyDamage(FFPawn, 5.0f, GetController(), this, UDamageType::StaticClass());
+			}
+		}
+
+		MulticastRPCPlayAttackEffect(Start, End, bHitVehicle, HitResult.ImpactPoint, HitResult.ImpactNormal);
+	}
+}
+
+void AFFPawn::MulticastRPCPlayAttackEffect_Implementation(const FVector& TraceStart, const FVector& TraceEnd, bool bHitVehicle, const FVector& ImpactPoint, const FVector& ImpactNormal)
+{
+	if (UWorld* World = GetWorld())
+	{
+		FColor LineColor = bHitVehicle ? FColor::Green : FColor::Red;
+		DrawDebugLine(World, TraceStart, TraceEnd, LineColor, false, 2.0f, 0, 5.0f);
+
+		if (bHitVehicle)
+		{
+			if (AttackEffect)
+			{
+				UGameplayStatics::SpawnEmitterAtLocation(World, AttackEffect, ImpactPoint, ImpactNormal.Rotation());
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

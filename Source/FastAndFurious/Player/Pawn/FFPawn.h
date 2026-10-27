@@ -9,6 +9,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class UInputAction;
 class UChaosWheeledVehicleMovementComponent;
+class UParticleSystem;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateVehicle, Log, All);
@@ -55,7 +56,13 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputAction* ResetVehicleAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
+	UInputAction* AttackAction;
+
 	bool bFrontCameraActive = false;
+
+	UPROPERTY(EditAnywhere, Category = Effects)
+	UParticleSystem* AttackEffect;
 
 public:
 	AFFPawn();
@@ -63,6 +70,9 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
 
 	virtual void Tick(float Delta) override;
+
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
 
 protected:
 
@@ -84,8 +94,17 @@ protected:
 
 	void ResetVehicle(const FInputActionValue& Value);
 
+	void InputAttack(const FInputActionValue& Value);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Vehicle")
 	void BrakeLights(bool bBraking);
+
+	UFUNCTION(Server, Reliable)
+	void ServerRPCAttack();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastRPCPlayAttackEffect(const FVector& TraceStart, const FVector& TraceEnd, bool bHitVehicle, const FVector& ImpactPoint, const FVector& ImpactNormal);
+
 
 public:
 	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }

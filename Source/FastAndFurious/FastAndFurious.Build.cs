@@ -16,7 +16,9 @@ public class FastAndFurious : ModuleRules
             "EnhancedInput",
             "ChaosVehicles",
             "PhysicsCore",
-            "UMG"
+            "UMG",
+            "Slate",
+            "SlateCore"
         });
 
         PublicIncludePaths.AddRange(new string[] { "FastAndFurious" });
