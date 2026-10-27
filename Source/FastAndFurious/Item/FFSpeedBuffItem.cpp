@@ -1,4 +1,4 @@
-
+ï»¿
 #include "Item/FFSpeedBuffItem.h"
 
 #include "Components/SphereComponent.h"
@@ -14,8 +14,8 @@ AFFSpeedBuffItem::AFFSpeedBuffItem()
 	PrimaryActorTick.bCanEverTick = false;
 
 	bReplicates = true;
-	NetUpdateFrequency = 1.f; // ÃÊ´ç ¸î¹ø Replication ÇÒÁö
-	MinNetUpdateFrequency = 1.f; // ÃÊ´ç ÃÖ¼Ò ¸î¹ø Replication ÇÒÁö
+	NetUpdateFrequency = 1.f; // ì´ˆë‹¹ ëª‡ë²ˆ Replication í• ì§€
+	MinNetUpdateFrequency = 1.f; // ì´ˆë‹¹ ìµœì†Œ ëª‡ë²ˆ Replication í• ì§€
 
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
@@ -38,7 +38,7 @@ void AFFSpeedBuffItem::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (HasAuthority()) // ¼­¹ö¿¡¼­¸¸ Ãæµ¹ ÆÇÁ¤
+	if (HasAuthority()) // ì„œë²„ì—ì„œë§Œ ì¶©ëŒ íŒì •
 	{
 		OverlapSphere->OnComponentBeginOverlap.AddDynamic(this, &AFFSpeedBuffItem::OnOverlapSphereBeginOverlap);
 	}
@@ -46,7 +46,7 @@ void AFFSpeedBuffItem::BeginPlay()
 
 void AFFSpeedBuffItem::OnOverlapSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (!HasAuthority()) // ¼­¹ö°¡ ¾Æ´Ï¸é return (Áï, ÆÇÁ¤ ¾ÈÇÔ)
+	if (!HasAuthority()) // ì„œë²„ê°€ ì•„ë‹ˆë©´ return (ì¦‰, íŒì • ì•ˆí•¨)
 	{
 		return;
 	}
@@ -68,7 +68,7 @@ void AFFSpeedBuffItem::OnOverlapSphereBeginOverlap(UPrimitiveComponent* Overlapp
 	Destroy();
 }
 
-void AFFSpeedBuffItem::MulticastRPCPickupEffects()
+void AFFSpeedBuffItem::MulticastRPCPickupEffects_Implementation()
 {
 	UWorld* World = GetWorld();
 

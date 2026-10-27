@@ -8,6 +8,8 @@
 #include "GameFramework/PlayerState.h"
 #include "EngineUtils.h"
 #include "Core/Subsystem/FFChatSubsystem.h"
+#include "Player/PlayerState/FFPlayerState.h"
+#include "EnhancedInputComponent.h"
 
 void AFFPlayerController::BeginPlay()
 {
@@ -40,6 +42,14 @@ void AFFPlayerController::SetupInputComponent()
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		Subsystem->AddMappingContext(InputMappingContext, 0);
+	}
+
+	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(InputComponent))
+	{
+		if (IsValid(OpenChatAction))
+		{
+			EnhancedInputComponent->BindAction(OpenChatAction, ETriggerEvent::Started, this, &AFFPlayerController::OpenChat);
+		}
 	}
 }
 
@@ -78,11 +88,27 @@ void AFFPlayerController::OnRep_PlayerState()
 	}
 }
 
+void AFFPlayerController::OpenChat()
+{
+	if (!IsLocalController() || !IsValid(VehicleUI))
+	{
+		return;
+	}
+
+	VehicleUI->FocusChatInput();
+}
+
 void AFFPlayerController::ServerRPCChatMessage_Implementation(const FString& Message)
 {
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *Message);
 
-	const FString PlayerName = PlayerState->GetPlayerName();
+	AFFPlayerState* FFPlayerState = Cast<AFFPlayerState>(PlayerState);
+	if (!IsValid(FFPlayerState))
+	{
+		return;
+	}
+
+	const FString PlayerName = FFPlayerState->GetPlayerNameString();
 
 	if (UFFChatSubsystem* ChatSubsystem = GetWorld()->GetSubsystem<UFFChatSubsystem>())
 	{

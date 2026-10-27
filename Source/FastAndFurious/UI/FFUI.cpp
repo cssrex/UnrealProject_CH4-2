@@ -3,6 +3,7 @@
 #include "UI/FFChatUI.h"
 #include "Components/TextBlock.h"
 #include "Player/PlayerState/FFPlayerState.h"
+#include "Core/GameState/FFGameState.h"
 
 void UFFUI::NativeConstruct()
 {
@@ -15,7 +16,21 @@ void UFFUI::NativeDestruct()
 {
 	if (IsValid(CachingPlayerState))
 	{
-		CachingPlayerState->OnStateChanged.RemoveAll(this);
+		CachingPlayerState->OnCoinsChanged.RemoveAll(this);
+		CachingPlayerState->OnBonusMaxSpeedChanged.RemoveAll(this);
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		AFFGameState* FFGameState = World->GetGameState<AFFGameState>();
+
+		if (IsValid(FFGameState))
+		{
+			if (FFGameState->OnNotificationChanged.IsAlreadyBound(this, &UFFUI::OnNotificationTextCommitted) == true)
+			{
+				FFGameState->OnNotificationChanged.RemoveDynamic(this, &UFFUI::OnNotificationTextCommitted);
+			}
+		}
 	}
 
 	Super::NativeDestruct();
@@ -37,13 +52,41 @@ void UFFUI::InitializePlayerState()
 
 	if (IsValid(CachingPlayerState))
 	{
-		CachingPlayerState->OnStateChanged.RemoveAll(this);
+		CachingPlayerState->OnCoinsChanged.RemoveAll(this);
+		CachingPlayerState->OnBonusMaxSpeedChanged.RemoveAll(this);
 	}
 
 	CachingPlayerState = NewPlayerState;
-	CachingPlayerState->OnStateChanged.AddUObject(this, &UFFUI::OnStateTextCommitted);
+	CachingPlayerState->OnCoinsChanged.AddUObject(this, &UFFUI::OnCoinsTextCommitted);
+	CachingPlayerState->OnBonusMaxSpeedChanged.AddUObject(this, &UFFUI::OnMaxBonusSpeedTextCommitted);
 
-	OnStateTextCommitted();
+	OnCoinsTextCommitted();
+	OnMaxBonusSpeedTextCommitted();
+
+	if (UWorld* World = GetWorld())
+	{
+		AFFGameState* FFGameState = World->GetGameState<AFFGameState>();
+
+		if (IsValid(FFGameState))
+		{
+			if (FFGameState->OnNotificationChanged.IsAlreadyBound(this, &UFFUI::OnNotificationTextCommitted) == false)
+			{
+				FFGameState->OnNotificationChanged.AddDynamic(this, &UFFUI::OnNotificationTextCommitted);
+			}
+
+			OnNotificationTextCommitted(FFGameState->GetNotificationText());
+		}
+	}
+
+	Text_PlayerName->SetText(FText::FromString(FString::Printf(TEXT("YOU : %s"), *CachingPlayerState->GetPlayerNameString())));
+}
+
+void UFFUI::FocusChatInput()
+{
+	if (IsValid(UI_Chat))
+	{
+		UI_Chat->FocusChatInput();
+	}
 }
 
 void UFFUI::UpdateSpeed(float NewSpeed)
@@ -58,12 +101,29 @@ void UFFUI::UpdateGear(int32 NewGear)
 	OnGearUpdate(NewGear);
 }
 
-void UFFUI::OnStateTextCommitted()
+void UFFUI::OnCoinsTextCommitted()
 {
-	if (IsValid(CachingPlayerState) && IsValid(StateText))
+	if (IsValid(CachingPlayerState) && IsValid(Text_Coins))
 	{
-		FString Info = CachingPlayerState->GetPlayerStateInfo();
-		StateText->SetText(FText::FromString(Info));
+		FString Info = CachingPlayerState->GetCoinsInfo();
+		Text_Coins->SetText(FText::FromString(Info));
+	}
+}
+
+void UFFUI::OnMaxBonusSpeedTextCommitted()
+{
+	if (IsValid(CachingPlayerState) && IsValid(Text_BonusMaxSpeed))
+	{
+		FString Info = CachingPlayerState->GetBonusMaxSpeedInfo();
+		Text_BonusMaxSpeed->SetText(FText::FromString(Info));
+	}
+}
+
+void UFFUI::OnNotificationTextCommitted(const FText& NewNotificationText)
+{
+	if (IsValid(Text_Notification))
+	{
+		Text_Notification->SetText(NewNotificationText);
 	}
 }
 

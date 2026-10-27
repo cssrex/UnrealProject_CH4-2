@@ -11,6 +11,7 @@
 #include "ChaosWheeledVehicleMovementComponent.h"
 #include "Player/PlayerState/FFPlayerState.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/DamageType.h"
 
 #define LOCTEXT_NAMESPACE "VehiclePawn"
 
@@ -87,6 +88,8 @@ void AFFPawn::SetupPlayerInputComponent(class UInputComponent* PlayerInputCompon
 void AFFPawn::Tick(float Delta)
 {
 	Super::Tick(Delta);
+
+	LimitForwardSpeed();
 
 	bool bMovingOnGround = ChaosVehicleMovement->IsMovingOnGround();
 	GetMesh()->SetAngularDamping(bMovingOnGround ? 0.0f : 3.0f);
@@ -225,6 +228,44 @@ void AFFPawn::InputAttack(const FInputActionValue& Value)
 	ServerRPCAttack();
 }
 
+void AFFPawn::LimitForwardSpeed()
+{
+	// 서버가 차량의 최종 물리 상태를 관리
+	if (!HasAuthority() || !IsValid(GetMesh()))
+	{
+		return;
+	}
+
+	float BonusSpeedKmh = 0.0f;
+
+	if (AFFPlayerState* FFPlayerState = GetPlayerState<AFFPlayerState>())
+	{
+		BonusSpeedKmh = FFPlayerState->GetBonusMaxSpeed();
+	}
+
+	// 기본 속도와 보너스는 km/h 단위
+	const float MaxSpeedKmh = FMath::Max(10.0f, BaseMaxSpeedKmh + BonusSpeedKmh);
+
+	// 물리 속도는 cm/s이므로 변환
+	const float MaxSpeedCms = MaxSpeedKmh / 0.036f;
+
+	const FVector Velocity = GetMesh()->GetPhysicsLinearVelocity();
+	const FVector ForwardDirection = GetActorForwardVector();
+
+	// 현재 속도 중 차량 전방 방향의 성분
+	const float ForwardSpeed = FVector::DotProduct(Velocity, ForwardDirection);
+
+	if (ForwardSpeed > MaxSpeedCms)
+	{
+		const float ExcessSpeed = ForwardSpeed - MaxSpeedCms;
+
+		// 전방 속도에서 초과한 만큼만 제거
+		const FVector LimitedVelocity = Velocity - ForwardDirection * ExcessSpeed;
+
+		GetMesh()->SetPhysicsLinearVelocity(LimitedVelocity);
+	}
+}
+
 void AFFPawn::ServerRPCAttack_Implementation()
 {
 	UE_LOG(LogTemplateVehicle, Warning, TEXT("Attack"));
@@ -252,6 +293,10 @@ void AFFPawn::ServerRPCAttack_Implementation()
 			{
 				bHitVehicle = true;
 				UGameplayStatics::ApplyDamage(FFPawn, 5.0f, GetController(), this, UDamageType::StaticClass());
+
+				/*const FVector ShotDirection = (End - Start).GetSafeNormal();
+
+				UGameplayStatics::ApplyPointDamage(FFPawn, 5.0f, (End - Start).GetSafeNormal(), HitResult, GetController(), this, UDamageType::StaticClass());*/
 			}
 		}
 

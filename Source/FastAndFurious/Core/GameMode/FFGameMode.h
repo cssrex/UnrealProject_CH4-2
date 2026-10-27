@@ -5,6 +5,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "FFGameMode.generated.h"
 
+class AFFPlayerController;
+
 UCLASS(MinimalAPI)
 class AFFGameMode : public AGameModeBase
 {
@@ -15,6 +17,9 @@ public:
 
 protected:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+	virtual void Logout(AController* Exiting) override;
+
+	virtual void BeginPlay() override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
 protected:
@@ -31,6 +36,13 @@ protected:
 
 private:
 	bool IsPlayerStartAvailable(const APlayerStart* PlayerStart) const;
+
+protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<TObjectPtr<AFFPlayerController>> AlivePlayerControllers;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	TArray<TObjectPtr<AFFPlayerController>> DeadPlayerControllers;
 
 private:
 	UPROPERTY(EditDefaultsOnly)

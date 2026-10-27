@@ -34,6 +34,8 @@ public:
 public:
 	void InitializePlayerState();
 
+	void FocusChatInput();
+
 	void UpdateSpeed(float NewSpeed);
 	void UpdateGear(int32 NewGear);
 
@@ -44,7 +46,13 @@ protected:
 	void OnGearUpdate(int32 NewGear);
 
 	UFUNCTION()
-	void OnStateTextCommitted();
+	void OnCoinsTextCommitted();
+
+	UFUNCTION()
+	void OnMaxBonusSpeedTextCommitted();
+
+	UFUNCTION()
+	void OnNotificationTextCommitted(const FText& NewNotificationText);
 
 #pragma region ChatUI
 public:
@@ -55,7 +63,16 @@ protected:
 	TObjectPtr<UFFChatUI> UI_Chat;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> StateText;
+	TObjectPtr<UTextBlock> Text_Coins;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_BonusMaxSpeed;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_Notification;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Text_PlayerName;
 
 	TObjectPtr<AFFPlayerState> CachingPlayerState;
 #pragma endregion

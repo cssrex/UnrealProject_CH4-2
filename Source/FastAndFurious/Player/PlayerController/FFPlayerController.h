@@ -6,6 +6,7 @@
 #include "FFPlayerController.generated.h"
 
 class UInputMappingContext;
+class UInputAction;
 class AFFPawn;
 class UFFUI;
 
@@ -36,9 +37,14 @@ protected:
 	void ClientRPCChatLog(const TArray<FChatData>& ChatLog);
 
 protected:
+	void OpenChat();
 
+protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	UInputMappingContext* InputMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input")
+	TObjectPtr<UInputAction> OpenChatAction;
 
 	UPROPERTY(Replicated)
 	TObjectPtr<AFFPawn> VehiclePawn;
@@ -47,6 +53,8 @@ protected:
 	TSubclassOf<UFFUI> VehicleUIClass;
 
 	TObjectPtr<UFFUI> VehicleUI;
+
+
 
 
 };

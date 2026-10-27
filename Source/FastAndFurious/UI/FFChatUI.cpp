@@ -36,6 +36,22 @@ void UFFChatUI::OnNewChatMessage(const FString& Sender, const FString& Message)
 	MultiLineEditableTextBox_ChatLog->SetText(FinalMessage);
 }
 
+void UFFChatUI::FocusChatInput()
+{
+	APlayerController* PC = GetOwningPlayer();
+
+	if (!IsValid(PC) || !IsValid(EditableTextBox_ChatInput))
+	{
+		return;
+	}
+
+	FInputModeUIOnly InputMode;
+	InputMode.SetWidgetToFocus(EditableTextBox_ChatInput->TakeWidget());
+
+	PC->SetInputMode(InputMode);
+	EditableTextBox_ChatInput->SetUserFocus(PC);
+}
+
 void UFFChatUI::OnChatInputTextCommitted(const FText& Text, ETextCommit::Type CommitMethod)
 {
 	if (CommitMethod == ETextCommit::OnEnter)
@@ -45,15 +61,14 @@ void UFFChatUI::OnChatInputTextCommitted(const FText& Text, ETextCommit::Type Co
 		if (ChatMessage.IsEmpty() == false)
 		{
 			AFFPlayerController* PC = GetOwningPlayer<AFFPlayerController>();
-			if (IsValid(PC))
+			if (IsValid(PC) && PC->IsLocalController())
 			{
-				if (!PC->IsLocalController())
-				{
-					return;
-				}
-
 				// 실제 채팅 코드
 				PC->ServerRPCChatMessage(ChatMessage);
+
+				// 채팅 전송 후 게임 입력으로 복귀
+				FInputModeGameOnly InputMode;
+				PC->SetInputMode(InputMode);
 			}
 		}
 	}

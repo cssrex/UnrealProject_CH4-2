@@ -2,6 +2,7 @@
 #include "Player/PlayerState/FFPlayerState.h"
 #include "FFPlayerState.h"
 #include "Net/UnrealNetwork.h"
+#include "Player/Pawn/FFPawn.h"
 
 void AFFPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -9,6 +10,7 @@ void AFFPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
 	DOREPLIFETIME_CONDITION(ThisClass, Coins, COND_OwnerOnly);
 	DOREPLIFETIME_CONDITION(ThisClass, BonusMaxSpeed, COND_OwnerOnly);
+	DOREPLIFETIME(ThisClass, PlayerNameString)
 }
 
 void AFFPlayerState::ServerRPCAddCoins_Implementation(const int32 Amount)
@@ -27,7 +29,8 @@ void AFFPlayerState::AddCoins(int32 Amount)
 	FString PlayerName = GetPlayerName();
 	UE_LOG(LogTemp, Warning, TEXT("%s - AddCoins: %d(+%d)"), *PlayerName, Coins, Amount);
 	Coins += Amount;
-	OnStateChanged.Broadcast();
+
+	OnCoinsChanged.Broadcast();
 }
 
 bool AFFPlayerState::TryRemoveCoins(int32 Amount)
@@ -39,7 +42,7 @@ bool AFFPlayerState::TryRemoveCoins(int32 Amount)
 
 	Coins -= Amount;
 
-	OnStateChanged.Broadcast();
+	OnCoinsChanged.Broadcast();
 
 	return true;
 }
@@ -53,7 +56,17 @@ void AFFPlayerState::AddBonusMaxSpeed(float Amount)
 
 	BonusMaxSpeed += Amount;
 
-	OnStateChanged.Broadcast();
+	OnBonusMaxSpeedChanged.Broadcast();
+}
+
+void AFFPlayerState::SetPlayerNameString(FString& NewPlayerNameString)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	PlayerNameString = NewPlayerNameString;
 }
 
 FString AFFPlayerState::GetPlayerStateInfo() const
@@ -62,8 +75,23 @@ FString AFFPlayerState::GetPlayerStateInfo() const
 
 }
 
-void AFFPlayerState::OnRep_State()
+FString AFFPlayerState::GetCoinsInfo() const
 {
-	OnStateChanged.Broadcast();
+	return FString::Printf(TEXT("Coins: %d"), Coins);
+}
+
+FString AFFPlayerState::GetBonusMaxSpeedInfo() const
+{
+	return FString::Printf(TEXT("BonusMaxSpeed: % .2f"), BonusMaxSpeed);
+}
+
+void AFFPlayerState::OnRep_Coins()
+{
+	OnCoinsChanged.Broadcast();
+}
+
+void AFFPlayerState::OnRep_BonusMaxSpeed()
+{
+	OnBonusMaxSpeedChanged.Broadcast();
 }
 

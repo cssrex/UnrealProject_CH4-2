@@ -64,6 +64,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Effects)
 	UParticleSystem* AttackEffect;
 
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Vehicle|Speed")
+	float BaseMaxSpeedKmh = 100.0f;
+
 public:
 	AFFPawn();
 
@@ -72,7 +76,6 @@ public:
 	virtual void Tick(float Delta) override;
 
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
-
 
 protected:
 
@@ -105,6 +108,7 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void MulticastRPCPlayAttackEffect(const FVector& TraceStart, const FVector& TraceEnd, bool bHitVehicle, const FVector& ImpactPoint, const FVector& ImpactNormal);
 
+	void LimitForwardSpeed();
 
 public:
 	FORCEINLINE USpringArmComponent* GetFrontSpringArm() const { return FrontSpringArm; }

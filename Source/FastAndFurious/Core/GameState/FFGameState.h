@@ -3,9 +3,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
-#include "FFGameStateBase.generated.h"
+#include "FFGameState.generated.h"
 
-class ACXPlayerState;
+class AFFPlayerState;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNotificationChanged, const FText&, NewText);
 
 UENUM(BlueprintType)
 enum class EGameState : uint8
@@ -18,7 +20,7 @@ enum class EGameState : uint8
 };
 
 UCLASS()
-class FASTANDFURIOUS_API AFFGameStateBase : public AGameStateBase
+class FASTANDFURIOUS_API AFFGameState : public AGameStateBase
 {
 	GENERATED_BODY()
 
@@ -28,9 +30,19 @@ public:
 public:
 	void SetGameState(EGameState NewGameState);
 	void SetRemainingTime(int32 NewRemainingTime);
-	void SetWinners(TArray<ACXPlayerState*>& NewWinners);
+	void SetWinners(TArray<AFFPlayerState*>& NewWinners);
+	void SetNotificationText(const FText& NewText);
 
 	int32 GetRemainingTime() const { return RemainingTime; }
+	const FText& GetNotificationText() const { return NotificationText; }
+
+protected:
+	UFUNCTION()
+	void OnRep_NotificationText();
+
+public:
+	FOnNotificationChanged OnNotificationChanged;
+
 protected:
 	UPROPERTY(Replicated)
 	EGameState CurrentGameState = EGameState::Waiting;
@@ -39,5 +51,8 @@ protected:
 	int32 RemainingTime = 0;
 
 	UPROPERTY(Replicated)
-	TArray<TObjectPtr<ACXPlayerState>> Winners;
+	TArray<TObjectPtr<AFFPlayerState>> Winners;
+
+	UPROPERTY(ReplicatedUsing = OnRep_NotificationText)
+	FText NotificationText;
 };

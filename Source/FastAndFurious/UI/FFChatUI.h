@@ -21,6 +21,8 @@ public:
 public:
 	void OnNewChatMessage(const FString& Sender, const FString& Message);
 
+	void FocusChatInput();
+
 protected:
 	UFUNCTION()
 	void OnChatInputTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
