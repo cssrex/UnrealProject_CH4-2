@@ -6,6 +6,7 @@
 #include "FFGameMode.generated.h"
 
 class AFFPlayerController;
+class APlayerStart;
 
 UCLASS(MinimalAPI)
 class AFFGameMode : public AGameModeBase
