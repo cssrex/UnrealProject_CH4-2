@@ -70,10 +70,10 @@ protected:
 	int32 MinimumPlayerCount = 2;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Game|Match")
-	int32 WaitingDuration = 15;
+	int32 WaitingDuration = 10;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Game|Match")
-	int32 PlayingDuration = 30;
+	int32 PlayingDuration = 40;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Game|Match")
 	float ReturnToTitleDelay = 5.0f;
